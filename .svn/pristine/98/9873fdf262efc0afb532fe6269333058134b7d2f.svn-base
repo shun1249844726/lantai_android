@@ -1,0 +1,65 @@
+package com.lexinsmart.planmanager;
+import static  com.lexinsmart.util.Constants.Roads;
+import java.io.IOException;
+
+import android.content.Context;
+import android.os.AsyncTask;
+
+import com.lexinsmart.util.Constants;
+import com.lexinsmart.util.DatabaseTools;
+import com.lexinsmart.util.IniReader;
+
+public class PlanManagerTask {
+	static Context mContext;
+	public static int RoadsNum = 0;
+	public static String[][] Roads;
+	public static void setActivity(Context context) {
+		mContext = context;
+	}
+	static class SaveRodeToDb extends AsyncTask<String, Void, String> {
+
+		@Override
+		protected String doInBackground(String... params) {
+			DatabaseTools.updateTable(mContext, Constants.DB_THING, Constants.DB_THING_COLUMNS, params, false);
+			return null;
+		}
+		@Override
+		protected void onPostExecute(String result) {
+			super.onPostExecute(result);
+		}
+	}
+	public static class ReadRoads extends AsyncTask<String, Void, String[][]>
+	{
+
+		@Override
+		public String[][] doInBackground(String... params) {
+			try {
+				new IniReader("RoadInfo.ini", mContext);
+				String roadnum = new IniReader("RoadInfo.ini", mContext).getValue(
+						"Set", "RoadNum");
+				RoadsNum = Integer.valueOf(roadnum).intValue();
+//				System.out.println("RoadsNum:" + RoadsNum);
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+			try {
+				new IniReader("RoadInfo.ini", mContext);
+				Roads = new IniReader("RoadInfo.ini", mContext)
+						.getAllValue(RoadsNum);
+//				for (int i = 0; i < Roads.length; i++) {
+//					for (int j = 0; j < Roads[0].length; j++) {
+//						System.out.print("allRoads[i][j]:" + Roads[i][j] + '\n');
+//					}
+//				}
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+			return Roads;
+		}
+		@Override
+		protected void onPostExecute(String[][] result) {
+			super.onPostExecute(result);
+			Constants.Roads = result;
+		}
+	}
+}

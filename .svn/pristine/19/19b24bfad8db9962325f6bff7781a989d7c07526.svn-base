@@ -1,0 +1,156 @@
+package com.lexinsmart.main;
+
+import static com.lexinsmart.util.Constants.Roads;
+import static com.lexinsmart.util.Constants.gUserName;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.ArrayAdapter;
+import android.widget.GridView;
+import android.widget.ListView;
+import android.widget.SimpleAdapter;
+import android.widget.TextView;
+
+import com.lexinsmart.about.About;
+import com.lexinsmart.gesture_lockpsd_demo.LoginActivity;
+import com.lexinsmart.newplan.Map;
+import com.lexinsmart.paramcofig.ParamCofig;
+import com.lexinsmart.planmanager.PlanManager;
+import com.lexinsmart.planmanager.PlanManagerTask;
+import com.lexinsmart.util.Constants;
+import com.lexinsmart.util.DatabaseTools;
+import com.lexinsmart_lantai.R;
+
+public class MainActivity extends Activity {
+	private GridView gridview;
+	private Context mContext;
+	private TextView userName;
+	private ListView recentRoadlist;
+	int[] gridImgIds = new int[] { R.drawable.super_mono_3d_018,
+			R.drawable.super_mono_3d_162, R.drawable.super_mono_3d_014,
+			R.drawable.super_mono_3d_094, R.drawable.super_mono_3d_156,
+			R.drawable.super_mono_3d_187 };
+	String[] gridImgNames = new String[] { "方案管理", "参数配置", "路口地图", "密码修改",
+			"关于", "退出" };
+	String[] recentRoadArr = { "", "", "", "" };
+	ArrayAdapter<String> adapterList ;
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_main);
+		mContext = this;
+		finViews();
+		creatGridView();
+		creatListView();
+		ArrayList<String[]> allRoadDetails = DatabaseTools.qurryAllRoads(mContext, Constants.DB_THING);
+		for (int i = 0; i < 4; i++) {
+				recentRoadArr[i] = allRoadDetails.get(allRoadDetails.size()-i-1)[1];
+			
+		}
+		
+		adapterList.notifyDataSetChanged();
+		recentRoadlist.setOnItemClickListener(new OnItemClickListener() {
+
+			@Override
+			public void onItemClick(AdapterView<?> parent, View view,
+					int position, long id) {
+				Intent intent = new Intent(MainActivity.this,PlanManager.class);
+				startActivity(intent);
+			}
+		});
+				
+
+//		DatabaseTools.updateTable(mContext, Constants.DB_USER,
+//				Constants.DB_USER_COLUMNS, new String[] { "username",
+//						"password" }, true);
+		PlanManagerTask.setActivity(mContext);
+		Roads = new PlanManagerTask.ReadRoads().doInBackground("");
+	}
+	private void creatListView() {
+		adapterList = new ArrayAdapter<String>(mContext,
+				R.layout.activity_main_listitem, recentRoadArr);
+		recentRoadlist.setAdapter(adapterList);
+	}
+	private void creatGridView() {
+		// 生成动态数组，并且转入数据
+		ArrayList<HashMap<String, Object>> lstImageItem = new ArrayList<HashMap<String, Object>>();
+		for (int i = 0; i < gridImgIds.length; i++) {
+			HashMap<String, Object> map = new HashMap<String, Object>();
+			map.put("ItemImage", gridImgIds[i]);// 添加图像资源的ID
+			map.put("ItemText", gridImgNames[i]);// 按序号做ItemText
+			lstImageItem.add(map);
+		}
+		// 生成适配器的ImageItem <====> 动态数组的元素，两者一一对应
+		SimpleAdapter saImageItems = new SimpleAdapter(this, // 没什么解释
+				lstImageItem,// 数据来源
+				R.layout.activity_main_griditem,// night_item的XML实现
+				// 动态数组与ImageItem对应的子项
+				new String[] { "ItemImage", "ItemText" },
+				// ImageItem的XML文件里面的一个ImageView,两个TextView ID
+				new int[] { R.id.ItemImage, R.id.ItemText });
+		// 添加并且显示
+		gridview.setAdapter(saImageItems);
+		// 添加消息处理
+		gridview.setOnItemClickListener(new ItemClickListener());
+	}
+	private void finViews() {
+		gridview = (GridView) findViewById(R.id.activity_main_gridviewId);
+		userName = (TextView) findViewById(R.id.activity_main_userNameId);
+		userName.setText("当前用户:" + gUserName);
+		recentRoadlist = (ListView) findViewById(R.id.activity_main_recentRoadlistId);
+	}
+	// 当AdapterView被单击(触摸屏或者键盘)，则返回的Item单击事件
+	class ItemClickListener implements OnItemClickListener {
+		public void onItemClick(AdapterView<?> arg0,// The AdapterView where the
+													// click happened
+				View arg1,// The view within the AdapterView that was clicked
+				int arg2,// The position of the view in the adapter
+				long arg3// The row id of the item that was clicked
+		) {// 在本例中arg2=arg3
+			@SuppressWarnings("unchecked")
+			HashMap<String, Object> item = (HashMap<String, Object>) arg0
+					.getItemAtPosition(arg2);
+			// 显示所选Item的ItemText
+			String cases = (String) item.get("ItemText");
+			Intent intent = new Intent();
+
+			switch (cases) {
+			case "方案管理":
+				intent.setClass(MainActivity.this, PlanManager.class);
+				startActivity(intent);
+				break;
+			case "参数配置":
+				intent.setClass(MainActivity.this, ParamCofig.class);
+				startActivity(intent);
+				break;
+			case "路口地图":
+				intent.setClass(MainActivity.this, Map.class);
+				startActivity(intent);
+				break;
+			case "密码修改":
+				intent.setClass(MainActivity.this, LoginActivity.class);
+				startActivity(intent);
+				break;
+			case "关于":
+				intent.setClass(MainActivity.this, About.class);
+				startActivity(intent);
+				break;
+			case "退出":
+				MainActivity.this.finish();
+				break;
+			default:
+				break;
+			}
+//			Toast.makeText(mContext, (CharSequence) item.get("ItemText"),
+//					Toast.LENGTH_SHORT).show();
+		}
+	}
+}

@@ -1,0 +1,711 @@
+package com.lexinsmart.planmanager;
+
+/* 
+ * 
+ * 105 103 101 102		105：5   相位编号
+ 103：3   相位方向
+ 101：1   车道编号
+ 102：2   车道类型
+ * 108 103 101 111 
+ * 104 103 102 101 
+ * 107 105 101 111
+ * 101 105 102 104
+ * 106 107 101 111 
+ * 102 107 102 101 
+ * 103 107 103 100
+ * */
+import static com.lexinsmart.util.Constants.FLEETLENGTH;
+import static com.lexinsmart.util.Constants.Roads;
+import static com.lexinsmart.util.Constants.FLEETSPACING;
+import static com.lexinsmart.util.Constants.GETGPS;
+import static com.lexinsmart.util.Constants.IP;
+import static com.lexinsmart.util.Constants.PORT;
+import static com.lexinsmart.util.Constants.SOCKETSTATE;
+import static com.lexinsmart.util.Constants.SENDCOMMOND_DISTENCE;
+import java.util.ArrayList;
+import java.util.List;
+
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.os.Bundle;
+import android.os.Handler;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+
+import com.baidu.mapapi.SDKInitializer;
+import com.baidu.mapapi.map.BaiduMap;
+import com.baidu.mapapi.map.BitmapDescriptor;
+import com.baidu.mapapi.map.BitmapDescriptorFactory;
+import com.baidu.mapapi.map.MapStatus;
+import com.baidu.mapapi.map.MapStatusUpdate;
+import com.baidu.mapapi.map.MapStatusUpdateFactory;
+import com.baidu.mapapi.map.MapView;
+import com.baidu.mapapi.map.Marker;
+import com.baidu.mapapi.map.MarkerOptions;
+import com.baidu.mapapi.map.OverlayOptions;
+import com.baidu.mapapi.map.Polyline;
+import com.baidu.mapapi.map.PolylineOptions;
+import com.baidu.mapapi.model.LatLng;
+import com.baidu.mapapi.utils.CoordinateConverter;
+import com.baidu.mapapi.utils.CoordinateConverter.CoordType;
+import com.baidu.mapapi.utils.DistanceUtil;
+import com.lexinsmart.SocketTools.Client;
+import com.lexinsmart.SocketTools.ISocketResponse;
+import com.lexinsmart.SocketTools.Packet;
+import com.lexinsmart.util.CRC16;
+import com.lexinsmart.util.JsonTools;
+import com.lexinsmart.util.StringUtil;
+import com.lexinsmart_lantai.R;
+
+public class ExecutePlan extends Activity implements OnClickListener {
+	Marker mMarkerA;
+	Marker mMarkerB;
+	ArrayList<String[]> RoadDetails;
+	private ImageView layoutDetailsImg;
+	private LinearLayout detailsLayout;
+	private Button executeplan_execute, executeplan_stop, executeplan_exit;
+	private TextView executeplan_nextcross, executeplan_distance,
+			executeplan_orientation, executeplan_totlecross,
+			executeplan_leftcross, executeplan_connectstatus;
+	private int totleCross;
+	Context mContext;
+	ArrayList<String[]> roadDetails_list;
+	String[][] RoadDetails_array;
+	MapView mMapView = null;
+	Polyline mPolyline;
+	Polyline mPolyline_1;
+	TextView roadName;
+	BaiduMap mBaiduMap;
+	private Client user = null;
+	private int DELYED = 1000;
+	private int i = 0;
+	Packet packet;
+	private int startCross, fleet_len, fleet_style;
+
+	private LatLng myLocation;
+	double longtitude;
+	double latitude;
+	int nowCrossNum = 0; // 要经过的路口的所在的数组的下标
+	LatLng nowCrossLL; // 要经过的路口的经纬度
+	private static int comeInRoadFlag = 0; // 进入路口标志
+	int fleetLength = 0;
+	LatLng lastLocation; // 上一个的定位信息
+	LatLng nextCross;
+	String[][] SignallerIdADPhaseInfo;
+	private static int sendControlFlag = 0;
+	private static int overFlag = 0;
+	private static int startFlag = 0;
+	
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		// 在使用SDK各组件之前初始化context信息，传入ApplicationContext
+		// 注意该方法要再setContentView方法之前实现
+		SDKInitializer.initialize(getApplicationContext());
+		setContentView(R.layout.activity_executeplan);
+		mContext = this;
+		// 获取地图控件引用
+		Intent intent = getIntent();
+		String roadDetalis = intent.getStringExtra("roadDetails");
+
+		startCross = intent.getIntExtra("startCross", -1);
+		fleet_len = intent.getIntExtra("fleet_len", -1);
+		fleet_style = intent.getIntExtra("fleet_style", -1);
+		System.out.println(roadDetalis + "," + startCross + "," + fleet_len
+				+ "," + fleet_style);
+		roadDetails_list = JsonTools.changeJsonToArray(roadDetalis);
+		RoadDetails_array = (String[][]) roadDetails_list
+				.toArray(new String[roadDetails_list.size()][]);
+
+		for (int i = 0; i < RoadDetails_array.length; i++) {
+			for (int j = 0; j < RoadDetails_array[0].length; j++) {
+				System.out.println("RoadDetails_array"
+						+ RoadDetails_array[i][j]);
+			}
+		}
+		totleCross = roadDetails_list.size();
+		findViews();
+		LatLng cenpt = new LatLng(Double.valueOf(RoadDetails_array[i][3]
+				.toString()),
+				Double.valueOf(RoadDetails_array[i][2].toString()));
+		// 定义地图状态
+		MapStatus mMapStatus = new MapStatus.Builder().target(cenpt).zoom(16)
+				.build();
+		// 定义MapStatusUpdate对象，以便描述地图状态将要发生的变化
+		MapStatusUpdate mMapStatusUpdate = MapStatusUpdateFactory
+				.newMapStatus(mMapStatus);
+		// 改变地图状态
+		mBaiduMap.setMapStatus(mMapStatusUpdate);
+
+		addMarkers();
+		addCustomElementsDemo();
+		addLocation();
+		fleetLength = (FLEETLENGTH + FLEETSPACING) * (fleet_len * 5 - 2) + 50;
+
+		lastLocation = new LatLng(31.95909166666667, 120.898925);
+
+		SignallerIdADPhaseInfo = new String[RoadDetails_array.length][2];
+		SignallerIdADPhaseInfo = getSignallerIdADPhaseInfo(RoadDetails_array);
+
+		for (int i = 0; i < Roads[0].length; i++) {
+			System.out.println("Roads[0]" + Roads[0][i]);
+		}
+		for (int i = 0; i < SignallerIdADPhaseInfo.length; i++) {
+			System.out.println("SignallerIdADPhaseInfo-->"
+					+ SignallerIdADPhaseInfo[i][0] + ";"
+					+ SignallerIdADPhaseInfo[i][1]);
+		}
+	}
+
+	private String[][] getSignallerIdADPhaseInfo(String[][] roaddetailsarray) {
+
+		String[][] returned = new String[roaddetailsarray.length][2];
+
+		for (int i = 0; i < roaddetailsarray.length; i++) {
+
+			for (int j = 0; j < Roads.length; j++) {
+				if (roaddetailsarray[i][0].equals(Roads[j][2])) {
+					returned[i][0] = Roads[j][3];
+					returned[i][1] = Roads[j][8];
+				}
+			}
+
+		}
+		return returned;
+	}
+
+	private void addLocation() {// 定位的坐标 TODO
+
+		LatLng point = new LatLng(0, 0);
+
+		// // 将GPS设备采集的原始GPS坐标转换成百度坐标
+		// CoordinateConverter converter = new CoordinateConverter();
+		// converter.from(CoordType.GPS);
+		// // sourceLatLng待转换坐标
+		// converter.coord(point);
+		// LatLng LL = converter.convert();
+
+		// 构建Marker图标
+		BitmapDescriptor bitmap = BitmapDescriptorFactory
+				.fromResource(R.drawable.roadflag);
+		// 构建MarkerOption，用于在地图上添加Marker
+		OverlayOptions option = new MarkerOptions().position(point)
+				.icon(bitmap);
+		// 在地图上添加Marker，并显示
+		mMarkerB = (Marker) mBaiduMap.addOverlay(option);
+	}
+
+	/**
+	 * 画线
+	 * 
+	 */
+	private void addCustomElementsDemo() {
+		List<LatLng> points = new ArrayList<LatLng>();
+		for (int i = 0; i < RoadDetails_array.length; i++) {
+			LatLng p = new LatLng(Double.valueOf(RoadDetails_array[i][3]
+					.toString()), Double.valueOf(RoadDetails_array[i][2]
+					.toString()));
+			points.add(p);
+		}
+		OverlayOptions ooPolyline = new PolylineOptions().width(10)
+				.color(0xAAFF0000).points(points);
+		mPolyline_1 = (Polyline) mBaiduMap.addOverlay(ooPolyline);
+	}
+
+	private void drawLine(LatLng location, LatLng nextCross, int style) {
+		List<LatLng> points = new ArrayList<LatLng>();
+
+		points.add(location);
+		points.add(nextCross);
+		OverlayOptions ooPolyline = null;
+		switch (style) {
+		case 1:
+			ooPolyline = new PolylineOptions().width(10).color(0xAAFF0000)
+					.points(points);
+			mPolyline = (Polyline) mBaiduMap.addOverlay(ooPolyline);
+
+			break;
+		case 2:
+			ooPolyline = new PolylineOptions().width(20).color(0x3300ffff)
+					.points(points);
+			mPolyline_1 = (Polyline) mBaiduMap.addOverlay(ooPolyline);
+			break;
+		case 3:
+			ooPolyline = new PolylineOptions().width(10).color(0x00000000)
+					.points(points);
+			mPolyline.remove();
+			break;
+		default:
+			break;
+		}
+
+	}
+
+	/**
+	 * 获取各路口经纬度
+	 * 
+	 */
+	private double[][] getCoordinates() {
+		double[][] Coordinates = new double[RoadDetails_array.length][2];
+		for (int i = 0; i < RoadDetails_array.length; i++) {
+			Coordinates[i][0] = Double.valueOf(RoadDetails_array[i][2]
+					.toString());
+			Coordinates[i][1] = Double.valueOf(RoadDetails_array[i][3]
+					.toString());
+		}
+		return Coordinates;
+	}
+
+	private void addMarkers() {
+		double[][] coordinates = getCoordinates();
+		LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+		View view = inflater.inflate(R.layout.marker, null);
+		roadName = (TextView) view.findViewById(R.id.roadnameId);
+		for (int i = 0; i < coordinates.length; i++) {
+			System.out.println("coordinates[i][0]:" + coordinates[i][0]
+					+ ";coordinates[i][1]:" + coordinates[i][1]);
+			LatLng llA = new LatLng(coordinates[i][1], coordinates[i][0]);
+			roadName.setText(RoadDetails_array[i][0]);
+			BitmapDescriptor bd1 = BitmapDescriptorFactory
+					.fromBitmap(getBitmapFromView(view));
+			MarkerOptions ooA = new MarkerOptions().position(llA).icon(bd1)
+					.zIndex(9).draggable(true).title(RoadDetails_array[i][0]);
+
+			mMarkerA = (Marker) (mBaiduMap.addOverlay(ooA));
+		}
+	}
+
+	private void findViews() {
+		mMapView = (MapView) findViewById(R.id.executeplan_mapId);
+		mBaiduMap = mMapView.getMap();
+		layoutDetailsImg = (ImageView) findViewById(R.id.executeplan_layoutmoreId);
+		layoutDetailsImg.setBackgroundResource(R.drawable.layoutshow);
+		detailsLayout = (LinearLayout) findViewById(R.id.executeplan_layoutdetailsId);
+		layoutDetailsImg.setOnClickListener(this);
+
+		executeplan_nextcross = (TextView) findViewById(R.id.executeplan_nextcrossId);// 下个路口
+		executeplan_distance = (TextView) findViewById(R.id.executeplan_distanceId);// 距离
+		executeplan_orientation = (TextView) findViewById(R.id.executeplan_orientationId);// 方向
+		executeplan_totlecross = (TextView) findViewById(R.id.executeplan_totlecrossId);// 任务路口
+		executeplan_totlecross.setText("" + totleCross);
+		executeplan_leftcross = (TextView) findViewById(R.id.executeplan_leftcrossId);// 剩余路口
+		executeplan_connectstatus = (TextView) findViewById(R.id.executeplan_connectstatusId);// 连接状态
+
+		executeplan_execute = (Button) findViewById(R.id.executeplan_executeId);
+		executeplan_execute.setOnClickListener(this);
+		executeplan_stop = (Button) findViewById(R.id.executeplan_stopId);
+		executeplan_stop.setOnClickListener(this);
+		executeplan_exit = (Button) findViewById(R.id.executeplan_exitId);
+		executeplan_exit.setOnClickListener(this);
+
+		layoutDetailsImg.setBackgroundResource(R.drawable.layouthide);
+
+		user = new Client(this.getApplicationContext(), socketListener);
+		packet = new Packet();
+
+		executeplan_nextcross.setText("" + RoadDetails_array[nowCrossNum][0]);
+		executeplan_orientation.setText("" + RoadDetails_array[nowCrossNum][1]);
+		executeplan_leftcross.setText(""
+				+ (RoadDetails_array.length - nowCrossNum));
+	}
+
+	/**
+	 * 定时器处理
+	 * 
+	 * @author xu
+	 * 
+	 */
+	Handler handler = new Handler();
+	Runnable runnable = new Runnable() {
+		@Override
+		public void run() {
+			// handler自带方法实现定时器
+			try {
+
+				handler.postDelayed(this, DELYED);
+				executeplan_connectstatus.setText(SOCKETSTATE);
+
+				packet.pack_byte(GETGPS);
+				user.send(packet);
+
+				// LatLng ll = mMarkerB.getPosition();
+				//
+				//
+				// LatLng llNew = new LatLng(ll.latitude + 0.00005,
+				// ll.longitude + 0.00005);
+				mMarkerB.setPosition(myLocation);
+
+				System.out.println("do..." + i++);
+
+				double nowLongititude = Double
+						.parseDouble(RoadDetails_array[nowCrossNum][2]);
+				double nowLatitude = Double
+						.parseDouble(RoadDetails_array[nowCrossNum][3]);
+
+				nowCrossLL = new LatLng(nowLatitude, nowLongititude);
+				int Distance = (int) DistanceUtil.getDistance(myLocation,
+						nowCrossLL);
+				executeplan_distance.setText("" + Distance);
+				System.out.println("Distance:" + Distance);
+				if (Distance < SENDCOMMOND_DISTENCE) {
+					// TODO 查询signallerId,根据方向查 phaseInfo
+					// 函数。。。。。。。
+					// TODO 发送控制红绿灯
+					sendLightControl(nowCrossNum);
+					if (startFlag == 0) {
+						startFlag = 1;
+						System.out.println("发送控制红绿灯  ");
+						System.out.println("Id_byte-->"
+								+ SignallerIdADPhaseInfo[nowCrossNum][0]);
+						String id = SignallerIdADPhaseInfo[nowCrossNum][0];
+						String PhaseInfo = SignallerIdADPhaseInfo[nowCrossNum][1];
+						byte[] Id_byte = new byte[8]; // 得到Id的对应的byte的数组
+						byte[][] PhaseInfoArray = StringUtil
+								.getPhaseInfoArray(PhaseInfo);
+						Id_byte = StringUtil.Str2Byte(id);
+
+						for (int i = 0; i < PhaseInfoArray.length; i++) {
+							for (int j = 0; j < PhaseInfoArray[0].length; j++) {
+								System.out.println("phasearray:"
+										+ (PhaseInfoArray[i][j] & 0xff));
+							}
+
+						}
+						// for (int i = 0; i < Id_byte.length; i++) {
+						// System.out.println(Id_byte[i]&0xff);
+						// }
+						startFlag = 1;
+					}
+					System.out.println("comeInRoadFlag-->" + comeInRoadFlag
+							+ ";nowCrossNum-->" + nowCrossNum
+							+ ";fleetLength-->" + fleetLength);
+					if (Distance <= 100) {
+						comeInRoadFlag = 1;
+					}
+					if (Distance > 100 && comeInRoadFlag == 1) {
+
+						nowCrossNum++;
+						if (nowCrossNum == RoadDetails_array.length) // 结束导航
+						{
+							executeplan_nextcross.setText("");
+							executeplan_orientation.setText("");
+							executeplan_leftcross.setText("执行结束");
+							executeplan_leftcross.setTextColor(Color.RED);
+							executeplan_leftcross.setTextSize(15);
+
+							handler.removeCallbacks(runnable);
+							user.close();
+
+						}
+						if (nowCrossNum < RoadDetails_array.length) { // 正常导航，下标加一，注意下标越界
+							executeplan_nextcross.setText(""
+									+ RoadDetails_array[nowCrossNum][0]);
+							executeplan_orientation.setText(""
+									+ RoadDetails_array[nowCrossNum][1]);
+							executeplan_leftcross.setText(""
+									+ (RoadDetails_array.length - nowCrossNum));
+
+							LatLng lastCrossLL = new LatLng(
+									Double.parseDouble(RoadDetails_array[nowCrossNum - 1][3]),
+									Double.parseDouble(RoadDetails_array[nowCrossNum - 1][2]));
+							LatLng onCrossLL = new LatLng(
+									Double.parseDouble(RoadDetails_array[nowCrossNum][3]),
+									Double.parseDouble(RoadDetails_array[nowCrossNum][2]));
+							drawLine(lastLocation, nextCross, 3);
+
+							drawLine(onCrossLL, lastCrossLL, 2);
+
+							comeInRoadFlag = 0;
+							overFlag = 1;
+						}
+					}
+					if (Distance > fleetLength && overFlag == 1) {
+						// 发送信号，停止控制红绿灯；
+						// TODO
+						overFlag = 0;
+						startFlag = 0;
+						System.out.println("发送信号，停止控制红绿灯");
+					}
+
+				}
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				System.out.println("exception...");
+			}
+
+		}
+		private ArrayList<Byte> sendLightControl(int nowcrossnum) {
+			int orientation = 0;
+			ArrayList<Byte> messagePackage = new ArrayList<Byte>();
+			byte[] PackageHeader = { 0x7E, 0x7E, 0x40, 0x00, 0x00, 0x00, 0x00,
+					0x00, 0x06 }; // 1.包头+命令字
+			for (int i = 0; i < PackageHeader.length; i++) {
+				messagePackage.add(PackageHeader[i]);
+			}
+//			byte[] signallerId = StringUtil
+//					.Str2Byte(SignallerIdADPhaseInfo[nowcrossnum][0]);                      //这里有问题
+//			for (int i = 0; i < PackageHeader.length; i++) {
+//				messagePackage.add(signallerId[i]);
+//			} // 2.信号机编号
+//			messagePackage.add((byte) 0x09); // 3、重复次数
+//			messagePackage.add((byte) 0x00); // 3、控制类型
+//			switch (RoadDetails_array[nowcrossnum][1]) {
+//			case "北":
+//				orientation = 101;
+//				break;
+//			case "西北":
+//				orientation = 102;
+//
+//				break;
+//			case "西":
+//				orientation = 103;
+//
+//				break;
+//			case "西南":
+//				orientation = 104;
+//
+//				break;
+//			case "南":
+//				orientation = 105;
+//
+//				break;
+//			case "东南":
+//				orientation = 106;
+//
+//				break;
+//			case "东":
+//				orientation = 107;
+//
+//				break;
+//			case "东北":
+//				orientation = 108;
+//
+//				break;
+//			default:
+//				break;
+//			}
+//			byte[][] PhaseArray = getPhaseArray(orientation, nowcrossnum);
+//			messagePackage.add((byte) PhaseArray.length); // 4.相位数量
+//
+//			for (int j = 0; j < PhaseArray.length; j++) {
+//				for (int j2 = 0; j2 < PhaseArray[i].length; j2++) {
+//					messagePackage.add(PhaseArray[j][j2]); // 5、相位数组
+//				}
+//			}
+//			messagePackage.add(CRC16.getCRC16(messagePackage, 1,
+//					messagePackage.size() - 1));
+//			messagePackage.add((byte) 0x7E);
+			for (int j2 = 0; j2 < messagePackage.size(); j2++) {
+				System.out.println("1111-->"+""+messagePackage.get(j2));
+			}
+			return messagePackage;
+
+		}
+
+		private byte[][] getPhaseArray(int orientation, int nowcrossnum) {
+			ArrayList<byte[]> okPhaseArray = new ArrayList<byte[]>();
+			byte[][] PhaseArray = StringUtil
+					.getPhaseInfoArray(SignallerIdADPhaseInfo[nowcrossnum][1]);
+			for (int i = 0; i < PhaseArray.length; i++) {
+				if (PhaseArray[i][1] == orientation) {
+					okPhaseArray.add(PhaseArray[i]);
+				}
+			}
+
+			return (byte[][]) okPhaseArray
+					.toArray(new byte[okPhaseArray.size()][]);
+		}
+	};
+	/**
+	 * 接收数据回调
+	 * 
+	 */
+	private ISocketResponse socketListener = new ISocketResponse() {
+
+		@Override
+		public void onSocketResponse(final String txt) {
+			runOnUiThread(new Runnable() {
+				public void run() {
+
+					String temp = txt.trim().toString();
+					System.out.println("txt.trim():" + temp);
+					if (txt.startsWith("7E")) {
+						String[] array_temp = temp.split(" ");
+						int[] array_temp_byte = new int[array_temp.length];
+
+						for (int i = 0; i < array_temp_byte.length; i++) {
+							array_temp_byte[i] = Integer.valueOf(array_temp[i],
+									16);
+						}
+						if (array_temp_byte[17] == 0x7E) {
+							// executeplan_connectstatus.setText(""
+							// + array_temp_byte[0] + ","
+							// + array_temp_byte[1] + ","
+							// + array_temp_byte[2] + ","
+							// + array_temp_byte[3] + ","
+							// + array_temp_byte[4] + ","
+							// + array_temp_byte[5] + ","
+							// + array_temp_byte[6] + ","
+							// + array_temp_byte[7] + ","
+							// + array_temp_byte[8] + ","
+							// + array_temp_byte[9] + ","
+							// + array_temp_byte[10] + ","
+							// + array_temp_byte[11] + ","
+							// + array_temp_byte[12] + ","
+							// + array_temp_byte[13] + ","
+							// + array_temp_byte[14] + ","
+							// + array_temp_byte[15] + ","
+							// + array_temp_byte[16] + ","
+							// + array_temp_byte[17]);
+							// longtitude = (double) ((array_temp_byte[8] * 256
+							// * 256 * 256 + array_temp_byte[9] * 256
+							// * 256 + array_temp_byte[10] * 256 +
+							// array_temp_byte[11])) / 1000000;
+							// latitude = (double) ((array_temp_byte[12] * 256
+							// * 256 * 256 + array_temp_byte[13] * 256
+							// * 256 + array_temp_byte[14] * 256 +
+							// array_temp_byte[15])) / 1000000;
+							// int longtitudeZH = (int) longtitude;
+							// double longtitudeXI = (longtitude - longtitudeZH)
+							// / 0.6d;
+							// longtitude = longtitudeZH + longtitudeXI;
+							//
+							// int latitudeZH = (int) latitude;
+							// double latitudeXI = (latitude - latitudeZH) /
+							// 0.6d;
+							// latitude = latitudeZH + latitudeXI;
+							longtitude = 120.8988;
+							latitude = 31.966586111111113;
+
+							executeplan_connectstatus.setText("" + latitude
+									+ '\n' + longtitude);
+
+							LatLng llA = new LatLng(latitude+0.0003*i, longtitude - 0.00003*i);
+
+							// 将GPS设备采集的原始GPS坐标转换成百度坐标
+							CoordinateConverter converter = new CoordinateConverter();
+							converter.from(CoordType.GPS);
+							// sourceLatLng待转换坐标
+							converter.coord(llA);
+							myLocation = converter.convert();
+							double nowLongititude = 0, nowLatitude = 0;
+							if (nowCrossNum < RoadDetails_array.length) {
+								nowLongititude = Double
+										.parseDouble(RoadDetails_array[nowCrossNum][2]);
+								nowLatitude = Double
+										.parseDouble(RoadDetails_array[nowCrossNum][3]);
+							} else {
+								nowLongititude = Double
+										.parseDouble(RoadDetails_array[nowCrossNum - 1][2]);
+								nowLatitude = Double
+										.parseDouble(RoadDetails_array[nowCrossNum - 1][3]);
+							}
+
+							nextCross = new LatLng(nowLatitude, nowLongititude);
+
+							if (mPolyline != null) {
+								drawLine(lastLocation, nextCross, 3);
+							}
+							drawLine(myLocation, nextCross, 1);
+							lastLocation = myLocation;
+
+							// myLocation = new LatLng(latitude, longtitude);
+						}
+						if (array_temp_byte[9] == 0x7E) {
+
+						}
+
+					}
+					// recContent.getText().append(txt).append("\r\n");
+				}
+			});
+		}
+	};
+
+	@Override
+	public void onClick(View v) {
+		switch (v.getId()) {
+		case R.id.executeplan_layoutmoreId: // 更多图片
+			if (detailsLayout.getVisibility() == View.GONE) {
+				detailsLayout.setVisibility(View.VISIBLE);
+				layoutDetailsImg.setBackgroundResource(R.drawable.layouthide);
+			} else if (detailsLayout.getVisibility() == View.VISIBLE) {
+				detailsLayout.setVisibility(View.GONE);
+				layoutDetailsImg.setBackgroundResource(R.drawable.layoutshow);
+			}
+			break;
+		case R.id.executeplan_executeId: // 开始
+			// ToastUtil.showShort(mContext, "IP:" + IP + ":" + PORT);
+			user.open(IP, PORT);
+			handler.postDelayed(runnable, DELYED); // 每隔1s执行
+			break;
+		case R.id.executeplan_stopId: // 暂停
+			handler.removeCallbacks(runnable);
+			break;
+		case R.id.executeplan_exitId: // 结束
+			handler.removeCallbacks(runnable);
+			user.close();
+			break;
+		case R.id.executeplan_nextcrossId: // 下个路口
+			break;
+		case R.id.executeplan_distanceId: // 距离
+			break;
+		case R.id.executeplan_orientationId:// 方向
+			break;
+		case R.id.executeplan_totlecrossId:// 任务路口
+			break;
+		case R.id.executeplan_leftcrossId:// 剩余路口
+			break;
+		case R.id.executeplan_connectstatusId:// 连接状态
+			break;
+		default:
+			break;
+		}
+
+	}
+
+	private Bitmap getBitmapFromView(View view) {
+		view.destroyDrawingCache();
+		view.measure(View.MeasureSpec.makeMeasureSpec(0,
+				View.MeasureSpec.UNSPECIFIED), View.MeasureSpec
+				.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+		view.layout(0, 0, view.getMeasuredWidth(), view.getMeasuredHeight());
+		view.setDrawingCacheEnabled(true);
+		Bitmap bitmap = view.getDrawingCache(true);
+		return bitmap;
+	}
+
+	@Override
+	protected void onDestroy() {
+		super.onDestroy();
+
+		handler.removeCallbacks(runnable);
+		user.close();
+		// 在activity执行onDestroy时执行mMapView.onDestroy()，实现地图生命周期管理
+		mMapView.onDestroy();
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+		// 在activity执行onResume时执行mMapView. onResume ()，实现地图生命周期管理
+		mMapView.onResume();
+	}
+
+	@Override
+	protected void onPause() {
+		super.onPause();
+		// 在activity执行onPause时执行mMapView. onPause ()，实现地图生命周期管理
+		mMapView.onPause();
+	}
+
+}

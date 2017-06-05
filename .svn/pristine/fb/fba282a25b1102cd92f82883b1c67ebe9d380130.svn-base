@@ -1,0 +1,76 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.lexinsmart.main.MainActivity" >
+
+    <LinearLayout
+        android:id="@+id/activity_main_titieLLid"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:background="@drawable/activity_main_titlebkg"
+        android:gravity="center"
+        android:orientation="horizontal" >
+
+        <TextView
+            android:id="@+id/activity_main_titleId"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="@string/main_title"
+            android:textColor="@android:color/black"
+            android:textSize="23dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/activity_main_userLLid"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_below="@id/activity_main_titieLLid"
+        android:gravity="center"
+        android:orientation="horizontal" >
+
+        <TextView
+            android:id="@+id/activity_main_userNameId"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="right"
+            android:text="当前用户："
+            android:paddingRight="20dp"
+            android:textColor="@android:color/black"
+            android:textSize="23dp" />
+    </LinearLayout>
+
+    <GridView
+        android:id="@+id/activity_main_gridviewId"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/activity_main_userLLid"
+        android:columnWidth="90dp"
+        android:gravity="center"
+        android:horizontalSpacing="10dp"
+        android:numColumns="auto_fit"
+        android:stretchMode="columnWidth"
+        android:verticalSpacing="10dp"/>
+
+    <TextView
+        android:id="@+id/activity_main_recentRoadId"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/activity_main_gridviewId"
+        android:gravity="left"
+        android:text="最近使用："
+        android:textColor="@android:color/black"
+        android:textSize="23dp" />
+
+    <ListView
+        android:id="@+id/activity_main_recentRoadlistId"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:divider="#00f"
+        android:dividerHeight="2px"
+        android:layout_below="@+id/activity_main_recentRoadId" >
+    </ListView>
+    
+</RelativeLayout>

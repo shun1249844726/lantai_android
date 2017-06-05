@@ -1,0 +1,57 @@
+package com.lexinsmart.planmanager;
+
+import java.util.ArrayList;
+
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
+import android.widget.RadioGroup;
+
+import com.lexinsmart.util.JsonTools;
+import com.lexinsmart_lantai.R;
+
+public class FleetSet extends Activity {
+	ArrayList<String[]> RoadDetails;
+	ListView slectCross;
+	RadioGroup rgLength, rgStyle;
+	String[] arr1;
+	private static final String[] recentRoadArr = { "e", "e", "e", "e" };
+	Context mContext;
+	ArrayAdapter<String> adapter1;
+
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_planmanager_fleetset);
+		mContext = this;
+
+		findViews();
+		Intent intent = getIntent();
+		String roadDetails = intent.getStringExtra("roadDetails");
+		System.out.println("roadDetails:" + roadDetails);
+		RoadDetails = JsonTools.changeJsonToArray(roadDetails);
+
+		System.out.println("RoadDetails.size()" + RoadDetails.size() + ","
+				+ RoadDetails.get(0).length);
+		arr1 = new String[RoadDetails.size()];
+		for (int i = 0; i < RoadDetails.size(); i++) {
+			arr1[i] = RoadDetails.get(i)[0];
+
+			System.out.println("arr1[0].length" + RoadDetails.get(i)[0]);
+		}
+
+		slectCross.setAdapter(new ArrayAdapter<String>(this,
+				R.layout.activity_fleetset_listitem,
+				arr1));
+
+	}
+
+	private void findViews() {
+		slectCross = (ListView) findViewById(R.id.slectcrossId);
+		rgLength = (RadioGroup) findViewById(R.id.rg_lengthId);
+		rgStyle = (RadioGroup) findViewById(R.id.rg_styleId);
+	}
+}

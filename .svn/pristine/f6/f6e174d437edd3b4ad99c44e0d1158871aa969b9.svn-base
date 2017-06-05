@@ -1,0 +1,136 @@
+package com.lexinsmart.planmanager;
+
+import java.util.ArrayList;
+
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.ListView;
+import android.widget.RadioGroup;
+import android.widget.TextView;
+
+import com.lexinsmart.gesture_lockpsd_demo.utils.ToastUtil;
+import com.lexinsmart.util.JsonTools;
+import com.lexinsmart_lantai.R;
+
+public class FleetSet extends Activity {
+	ArrayList<String[]> RoadDetails;
+	private TextView startCrossText;
+	ListView slectCross;
+	RadioGroup rgLength, rgStyle;
+	Button fleet_begin, fleet_exit;
+	String[] arr1;
+	private static final String[] recentRoadArr = { "e", "e", "e", "e" };
+	Context mContext;
+	ArrayAdapter<String> adapter1;
+	
+	String roadDetails ;
+	int slectPosition = 0;
+
+    int fleet_len = 0;
+    int fleet_style = 0;
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_planmanager_fleetset);
+		mContext = this;
+
+		findViews();
+		Intent intent = getIntent();
+		roadDetails = intent.getStringExtra("roadDetails");
+		System.out.println("roadDetails:" + roadDetails);
+		RoadDetails = JsonTools.changeJsonToArray(roadDetails);
+
+		
+		System.out.println("RoadDetails.size()" + RoadDetails.size() + ","
+				+ RoadDetails.get(0).length);
+		
+		arr1 = new String[RoadDetails.size()];
+		for (int i = 0; i < RoadDetails.size(); i++) {
+			arr1[i] = RoadDetails.get(i)[0];
+
+			System.out.println("arr1[0].length" + RoadDetails.get(i)[0]);
+		}
+
+		slectCross.setAdapter(new ArrayAdapter<String>(this,
+				R.layout.activity_fleetset_listitem, arr1));
+		slectCross.setOnItemClickListener(new OnItemClickListener() {
+
+			@Override
+			public void onItemClick(AdapterView<?> parent, View view,
+					int position, long id) {
+				slectPosition = position;
+				startCrossText.setText(RoadDetails.get(position)[0]);
+			}
+		});
+		fleet_begin.setOnClickListener(new OnClickListener() {
+			
+			@Override
+			public void onClick(View v) {
+				switch (rgLength.getCheckedRadioButtonId()) {
+				case R.id.rb1Id:
+					fleet_len = 1;
+					break;
+				case R.id.rb2Id:
+					fleet_len = 2;
+
+					break;
+				case R.id.rb3Id:
+					fleet_len = 3;
+
+					break;
+				case R.id.rb4Id:
+					fleet_len = 4;
+
+					break;
+				default:
+					break;
+				}
+				switch (rgStyle.getCheckedRadioButtonId()) {
+				case R.id.rb_style1Id:
+					fleet_style=1;
+					break;
+				case R.id.rb_style2Id:
+					fleet_style=2;
+					break;
+  
+				default:
+					break;
+				}
+				Intent intent = new Intent(FleetSet.this,ExecutePlan.class);
+				intent.putExtra("roadDetails", roadDetails);
+				intent.putExtra("startCross",slectPosition);
+				intent.putExtra("fleet_len",fleet_len);
+				intent.putExtra("fleet_style",fleet_style);
+				startActivity(intent);
+				finish();
+	//			ToastUtil.showShort(mContext, slectPosition+","+fleet_len+","+fleet_style);
+			}
+		});
+		fleet_exit.setOnClickListener(new OnClickListener() {
+			
+			@Override
+			public void onClick(View v) {
+				finish();
+			}
+		});
+		startCrossText.setText(RoadDetails.get(0)[0]);
+
+	}
+
+	private void findViews() {
+		slectCross = (ListView) findViewById(R.id.slectcrossId);
+		rgLength = (RadioGroup) findViewById(R.id.rg_lengthId);
+		rgStyle = (RadioGroup) findViewById(R.id.rg_styleId);
+		fleet_begin = (Button) findViewById(R.id.fleet_beginBtnId);
+		fleet_exit = (Button) findViewById(R.id.fleet_exitBtnId);
+		startCrossText = (TextView) findViewById(R.id.startCrossTextId);
+	}
+}

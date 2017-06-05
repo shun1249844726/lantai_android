@@ -1,0 +1,22 @@
+package com.lexinsmart.util;
+
+public class StringUtil {
+	public static byte[] Str2Byte(String inputStr) {
+		byte[] result = new byte[inputStr.length() / 2];
+		for (int i = 0; i < inputStr.length() / 2; ++i)
+			result[i] = (byte) (Integer.parseInt(
+					inputStr.substring(i * 2, i * 2 + 2), 16) & 0xff);
+		return result;
+	}
+	public static byte[][] getPhaseInfoArray(String inputStr) {
+		byte[][] returned = new byte[inputStr.length()/12][4];
+		String woca = "";
+		for (int i = 0; i < returned.length; i++) {
+			for (int j = 0; j < returned[0].length; j++) {
+				woca = inputStr.substring(j * 3+12*i, 3 * (j + 1)+12*i);
+				returned[i][j] = (byte) (Integer.parseInt(woca) & 0xff);
+			}
+		}
+		return returned;
+	}
+}

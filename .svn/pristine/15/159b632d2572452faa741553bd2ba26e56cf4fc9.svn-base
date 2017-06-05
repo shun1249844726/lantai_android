@@ -1,0 +1,76 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:background="@drawable/activity_main_titlebkg"
+        android:gravity="center"
+        android:orientation="horizontal" >
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center_vertical|right"
+            android:layout_weight="1"
+            android:visibility="invisible" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="5"
+            android:gravity="center"
+            android:text="编辑方案"
+            android:textColor="@android:color/white"
+            android:textSize="23dp" />
+
+        <ImageView
+            android:id="@+id/roadset_addplanId"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_gravity="center_vertical|right"
+            android:layout_weight="1"
+            android:src="@drawable/addplan" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:orientation="vertical" >
+
+        <cn.yydcdut.sdlv.SlideAndDragListView
+            android:id="@+id/lv_edit"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="8"
+            android:divider="@android:color/black"
+            android:dividerHeight="0.5dip"
+            android:listSelector="@drawable/list_selector"
+            android:paddingLeft="8dip"
+            android:paddingRight="8dip" >
+        </cn.yydcdut.sdlv.SlideAndDragListView>
+
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical" >
+
+            <Button
+                android:id="@+id/roadset_sure_BtnId"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        android:textColor="@android:color/white"
+        android:background="@drawable/bg_alibuybutton"
+                android:text="确定" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">蓝泰交通</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+
+    <!-- Gesture code starting -->
+    <string name="setup_gesture_code">设置手势密码</string>
+    <string name="setup_gesture_pattern">绘制解锁图案</string>
+    <string name="setup_gesture_pattern_again">再次绘制解锁图案</string>
+    <string name="forget_gesture_code">忘记手势密码?</string>
+    <string name="use_other_account_login">用其他账号登录</string>
+    <string name="set_gesture_pattern">绘制解锁图案</string>
+    <string name="set_gesture_pattern_reason">设置手势密码，防止他人未经授权查看</string>
+    <string name="reset_gesture_code">重新设置手势密码</string>
+    <!-- End -->
+
+    <!-- activity -->
+    <string name="main_title">车载交通优先放行系统</string>
+    <string name="set_title">放行参数设置</string>
+    <!-- End -->
+    <string name="demo_title_offline">离线地图功能--OfflineDemo</string>
+    <string name="demo_desc_offline">介绍如何下载和使用离线地图</string>
+    <string name="improtfile_filecontent">
+
+    </string>
+</resources>
